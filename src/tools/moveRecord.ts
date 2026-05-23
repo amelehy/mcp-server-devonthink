@@ -4,6 +4,7 @@ import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper, isGroupHelper } from "../utils/jxaHelpers.js";
+import { JXA_DEVONTHINK_APP } from "../constants.js";
 
 const ToolInputSchema = ToolSchema.shape.inputSchema;
 type ToolInput = z.infer<typeof ToolInputSchema>;
@@ -61,7 +62,7 @@ const moveRecord = async (
 
 	const script = `
     (() => {
-      const theApp = Application("DEVONthink");
+      const theApp = ${JXA_DEVONTHINK_APP};
       theApp.includeStandardAdditions = true;
       
       // Inject helper functions

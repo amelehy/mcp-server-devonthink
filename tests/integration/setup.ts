@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { writeTestContext, cleanupContextFile, type TestContext } from "./helpers.js";
+import { JXA_DEVONTHINK_APP } from "../../src/constants.js";
 
 let ctx: TestContext;
 
@@ -36,7 +37,7 @@ export async function setup() {
 		error?: string;
 	}>(
 		`(() => {
-      const theApp = Application("DEVONthink");
+      const theApp = ${JXA_DEVONTHINK_APP};
       theApp.includeStandardAdditions = true;
       try {
         const db = theApp.createDatabase("${dbPath}");
@@ -70,7 +71,7 @@ export async function teardown() {
 	try {
 		await executeJxa(
 			`(() => {
-        const theApp = Application("DEVONthink");
+        const theApp = ${JXA_DEVONTHINK_APP};
         theApp.includeStandardAdditions = true;
         const databases = theApp.databases();
         for (let i = 0; i < databases.length; i++) {

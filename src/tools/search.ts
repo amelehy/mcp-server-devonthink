@@ -2,6 +2,7 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
+import { JXA_DEVONTHINK_APP } from "../constants.js";
 import {
 	escapeSearchQuery,
 	formatValueForJXA,
@@ -160,7 +161,7 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
 
 	const script = `
     (() => {
-      const theApp = Application("DEVONthink");
+      const theApp = ${JXA_DEVONTHINK_APP};
       theApp.includeStandardAdditions = true;
       
       // Inject helper functions
