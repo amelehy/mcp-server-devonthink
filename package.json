@@ -19,7 +19,7 @@
 	],
 	"scripts": {
 		"build": "tsc && shx chmod +x dist/index.js",
-		"prepare": "npm run build",
+		"prepare": "node -e \"const fs=require('fs');if(fs.existsSync('dist/index.js'))process.exit(0);\" || npm run build",
 		"watch": "tsc --watch",
 		"format": "biome format --write .",
 		"lint:fix": "biome lint --fix",

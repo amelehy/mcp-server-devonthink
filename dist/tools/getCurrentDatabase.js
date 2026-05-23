@@ -1,0 +1,71 @@
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { executeJxa } from "../applescript/execute.js";
+import { JXA_DEVONTHINK_APP } from "../constants.js";
+const ToolInputSchema = ToolSchema.shape.inputSchema;
+const GetCurrentDatabaseSchema = z.object({}).strict();
+const getCurrentDatabase = async () => {
+    const script = `
+    (() => {
+      const theApp = ${JXA_DEVONTHINK_APP};
+      theApp.includeStandardAdditions = true;
+      
+      try {
+        const currentDb = theApp.currentDatabase();
+        
+        if (!currentDb) {
+          return JSON.stringify({
+            success: false,
+            error: "No current database selected"
+          });
+        }
+        
+        const databaseInfo = {
+          id: currentDb.id(),
+          uuid: currentDb.uuid(),
+          name: currentDb.name(),
+          path: currentDb.path(),
+          filename: currentDb.filename(),
+          encrypted: currentDb.encrypted(),
+          readOnly: currentDb.readOnly(),
+          spotlightIndexing: currentDb.spotlightIndexing(),
+          versioning: currentDb.versioning()
+        };
+        
+        // Handle audit/revision proof compatibility: before 4.1 vs 4.1 and later
+        try {
+          databaseInfo["revisionProof"] = currentDb.revisionProof(); // 4.1 and later
+        } catch (e) {
+          try {
+            databaseInfo["auditProof"] = currentDb.auditProof(); // before 4.1
+          } catch (e2) {
+            // fallback if neither works - don't add any property
+          }
+        }
+        
+        // Add comment if available
+        if (currentDb.comment && currentDb.comment()) {
+          databaseInfo.comment = currentDb.comment();
+        }
+        
+        return JSON.stringify({
+          success: true,
+          database: databaseInfo
+        });
+      } catch (error) {
+        return JSON.stringify({
+          success: false,
+          error: error.toString()
+        });
+      }
+    })();
+  `;
+    return await executeJxa(script);
+};
+export const currentDatabaseTool = {
+    name: "current_database",
+    description: "Get information about the currently selected database in DEVONthink.\n\nExample:\n{}",
+    inputSchema: zodToJsonSchema(GetCurrentDatabaseSchema),
+    run: getCurrentDatabase,
+};

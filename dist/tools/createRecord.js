@@ -1,0 +1,99 @@
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { executeJxa } from "../applescript/execute.js";
+import { JXA_DEVONTHINK_APP } from "../constants.js";
+const ToolInputSchema = ToolSchema.shape.inputSchema;
+const CreateRecordSchema = z
+    .object({
+    name: z.string().describe("Name of the new record"),
+    type: z
+        .string()
+        .describe("Record type (e.g., 'markdown', 'formatted note', 'bookmark', 'group')"),
+    content: z.string().optional().describe("Content for text-based records (optional)"),
+    url: z.string().optional().describe("URL for bookmark records (optional)"),
+    parentGroupUuid: z
+        .string()
+        .optional()
+        .describe("UUID of the parent group (optional, defaults to incoming group)"),
+    databaseName: z
+        .string()
+        .optional()
+        .describe("Database to create the record in (optional, defaults to current)"),
+})
+    .strict();
+const createRecord = async (input) => {
+    const { name, type, content, url, parentGroupUuid, databaseName } = input;
+    const script = `
+    (() => {
+      const theApp = ${JXA_DEVONTHINK_APP};
+      theApp.includeStandardAdditions = true;
+      
+      try {
+        let targetDatabase;
+        if ("${databaseName || ""}") {
+          const databases = theApp.databases();
+          targetDatabase = databases.find(db => db.name() === "${databaseName}");
+          if (!targetDatabase) {
+            throw new Error("Database not found: ${databaseName}");
+          }
+        } else {
+          targetDatabase = theApp.currentDatabase();
+        }
+
+        // Get the parent group
+        let destinationGroup;
+        if ("${parentGroupUuid || ""}") {
+          destinationGroup = theApp.getRecordWithUuid("${parentGroupUuid}");
+          if (!destinationGroup) {
+            throw new Error("Parent group with UUID not found: ${parentGroupUuid}");
+          }
+        } else {
+          destinationGroup = targetDatabase.incomingGroup();
+        }
+        
+        // Create the record properties
+        const recordProps = {
+          name: "${name}",
+          type: "${type}"
+        };
+        
+        // Add content if provided
+        ${content ? `recordProps.content = \`${content.replace(/`/g, "\\`")}\`;` : ""}
+        
+        // Add URL if provided
+        ${url ? `recordProps.URL = "${url}";` : ""}
+        
+        // Create the record
+        const newRecord = theApp.createRecordWith(recordProps, { in: destinationGroup });
+        
+        if (newRecord) {
+          return JSON.stringify({
+            success: true,
+            recordId: newRecord.id(),
+            name: newRecord.name(),
+            uuid: newRecord.uuid(),
+            referenceURL: newRecord.referenceURL()
+          });
+        } else {
+          return JSON.stringify({
+            success: false,
+            error: "Failed to create record"
+          });
+        }
+      } catch (error) {
+        return JSON.stringify({
+          success: false,
+          error: error.toString()
+        });
+      }
+    })();
+  `;
+    return await executeJxa(script);
+};
+export const createRecordTool = {
+    name: "create_record",
+    description: 'Create a new record in DEVONthink.\n\nExample:\n{\n  "name": "New Note",\n  "type": "markdown",\n  "content": "# Hello World"\n}',
+    inputSchema: zodToJsonSchema(CreateRecordSchema),
+    run: createRecord,
+};

@@ -1,0 +1,77 @@
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { executeJxa } from "../applescript/execute.js";
+import { JXA_DEVONTHINK_APP } from "../constants.js";
+const ToolInputSchema = ToolSchema.shape.inputSchema;
+const GetOpenDatabasesSchema = z.object({}).strict();
+const getOpenDatabases = async () => {
+    const script = `
+    (() => {
+      const theApp = ${JXA_DEVONTHINK_APP};
+      theApp.includeStandardAdditions = true;
+      
+      try {
+        const databases = theApp.databases();
+        
+        if (!databases || databases.length === 0) {
+          return JSON.stringify({
+            success: true,
+            databases: [],
+            totalCount: 0
+          });
+        }
+        
+        const databaseInfos = databases.map(db => {
+          const info = {
+            id: db.id(),
+            uuid: db.uuid(),
+            name: db.name(),
+            path: db.path(),
+            filename: db.filename(),
+            encrypted: db.encrypted(),
+            readOnly: db.readOnly(),
+            spotlightIndexing: db.spotlightIndexing(),
+            versioning: db.versioning()
+          };
+          
+          // Handle audit/revision proof compatibility: before 4.1 vs 4.1 and later
+          try {
+            info["revisionProof"] = db.revisionProof(); // 4.1 and later
+          } catch (e) {
+            try {
+              info["auditProof"] = db.auditProof(); // before 4.1
+            } catch (e2) {
+              // fallback if neither works - don't add any property
+            }
+          }
+          
+          // Add comment if available
+          if (db.comment && db.comment()) {
+            info.comment = db.comment();
+          }
+          
+          return info;
+        });
+        
+        return JSON.stringify({
+          success: true,
+          databases: databaseInfos,
+          totalCount: databases.length
+        });
+      } catch (error) {
+        return JSON.stringify({
+          success: false,
+          error: error.toString()
+        });
+      }
+    })();
+  `;
+    return await executeJxa(script);
+};
+export const getOpenDatabasesTool = {
+    name: "get_open_databases",
+    description: "Get a list of all currently open databases in DEVONthink.\n\nExample:\n{}",
+    inputSchema: zodToJsonSchema(GetOpenDatabasesSchema),
+    run: getOpenDatabases,
+};
