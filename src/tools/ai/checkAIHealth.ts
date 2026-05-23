@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { JXA_DEVONTHINK_APP } from "../../constants.js";
 import { createDevonThinkTool } from "../base/DevonThinkTool.js";
 import { AI_ENGINES } from "./constants.js";
 
@@ -34,7 +35,7 @@ export const checkAIHealthTool = createDevonThinkTool({
 	inputSchema: CheckAIHealthSchema,
 	buildScript: (input, helpers) => {
 		return helpers.wrapInTryCatch(`
-      const theApp = Application("DEVONthink");
+      const theApp = ${JXA_DEVONTHINK_APP};
       theApp.includeStandardAdditions = true;
       
       const result = {};

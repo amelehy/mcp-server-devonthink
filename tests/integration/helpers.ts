@@ -2,6 +2,7 @@ import { executeJxa } from "../../src/applescript/execute.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { JXA_DEVONTHINK_APP } from "../../src/constants.js";
 
 export interface TestContext {
 	dbPath: string;
@@ -29,7 +30,7 @@ export function cleanupContextFile(): void {
 
 export async function jxa<T>(script: string): Promise<T> {
 	return executeJxa<T>(`(() => {
-    const theApp = Application("DEVONthink");
+    const theApp = ${JXA_DEVONTHINK_APP};
     theApp.includeStandardAdditions = true;
     try {
       ${script}
