@@ -1,72 +1,106 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
-import { getRecordLookupHelpers } from "../utils/jxaHelpers.js";
+import { getRecordLookupHelpers, getDatabaseHelper, getEditionCompatHelpers, getRecordTypeOrKindHelper, getRecordTextContentHelper, } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const GetRecordContentSchema = z
     .object({
-    uuid: z.string().describe("UUID of the record to get content from"),
+    uuid: z.string().optional().describe("Record UUID"),
+    recordUuid: z.string().optional().describe("Alias for uuid (use the uuid field from search results)"),
+    id: z.number().optional().describe("Numeric record id from search results (e.g. 13855)"),
+    recordId: z.number().optional().describe("Alias for id"),
     databaseName: z
         .string()
         .optional()
-        .describe("Database name to get the record from (optional)"),
+        .describe("Database name (optional, from get_open_databases)"),
+    databaseUuid: z
+        .string()
+        .optional()
+        .describe("Database UUID (optional, from get_open_databases)"),
 })
-    .strict();
+    .strict()
+    .refine((data) => data.uuid !== undefined ||
+    data.recordUuid !== undefined ||
+    data.id !== undefined ||
+    data.recordId !== undefined, { message: "Provide uuid, recordUuid, id, or recordId" });
 const getRecordContent = async (input) => {
-    const { uuid, databaseName } = input;
-    // Validate string inputs
-    if (!isJXASafeString(uuid)) {
+    let resolvedUuid = input.recordUuid ?? input.uuid;
+    let resolvedId = input.recordId ?? input.id;
+    // Claude often passes numeric id as "uuid" (e.g. "13855")
+    if (resolvedUuid && resolvedId === undefined && /^\d+$/.test(resolvedUuid)) {
+        resolvedId = Number.parseInt(resolvedUuid, 10);
+        resolvedUuid = undefined;
+    }
+    if (resolvedUuid && !isJXASafeString(resolvedUuid)) {
         return { success: false, error: "UUID contains invalid characters" };
     }
-    if (databaseName && !isJXASafeString(databaseName)) {
+    if (input.databaseName && !isJXASafeString(input.databaseName)) {
         return { success: false, error: "Database name contains invalid characters" };
+    }
+    if (input.databaseUuid && !isJXASafeString(input.databaseUuid)) {
+        return { success: false, error: "Database UUID contains invalid characters" };
     }
     const script = `
     (() => {
       const theApp = ${JXA_DEVONTHINK_APP};
       theApp.includeStandardAdditions = true;
       
-      // Inject helper functions
+      ${getEditionCompatHelpers()}
       ${getRecordLookupHelpers()}
+      ${getDatabaseHelper}
+      ${getRecordTypeOrKindHelper}
+      ${getRecordTextContentHelper}
       
       try {
-        // Use the unified lookup function
+        const targetDatabase = resolveDatabase(
+          theApp,
+          ${input.databaseName ? `"${escapeStringForJXA(input.databaseName)}"` : "null"},
+          ${input.databaseUuid ? `"${escapeStringForJXA(input.databaseUuid)}"` : "null"}
+        );
+
         const lookupOptions = {
-          uuid: ${uuid ? `"${escapeStringForJXA(uuid)}"` : "null"}
+          uuid: ${resolvedUuid ? `"${escapeStringForJXA(resolvedUuid)}"` : "null"},
+          id: ${resolvedId !== undefined ? resolvedId : "null"},
+          path: null,
+          name: null,
+          database: targetDatabase
         };
         
         const lookupResult = getRecord(theApp, lookupOptions);
         
         if (!lookupResult.record) {
-          return JSON.stringify({
-            success: false,
-            error: "Record with UUID " + (${uuid ? `"${escapeStringForJXA(uuid)}"` : "null"} || "unknown") + " not found"
-          });
+          let errorDetails = lookupResult.error || "Record not found";
+          if (${resolvedId !== undefined ? resolvedId : "null"} !== null) {
+            errorDetails = "Record with ID " + ${resolvedId !== undefined ? resolvedId : "null"} + " not found";
+          } else if (${resolvedUuid ? `"${escapeStringForJXA(resolvedUuid)}"` : "null"}) {
+            errorDetails = "Record with UUID " + (${resolvedUuid ? `"${escapeStringForJXA(resolvedUuid)}"` : "null"} || "unknown") + " not found";
+          }
+          return JSON.stringify({ success: false, error: errorDetails });
         }
         
         const record = lookupResult.record;
-        
-        // Verify database if specified
-        const pDatabaseName = ${databaseName ? `"${escapeStringForJXA(databaseName)}"` : "null"};
+        const pDatabaseName = ${input.databaseName ? `"${escapeStringForJXA(input.databaseName)}"` : "null"};
+        const pDatabaseUuid = ${input.databaseUuid ? `"${escapeStringForJXA(input.databaseUuid)}"` : "null"};
         if (pDatabaseName && record.database().name() !== pDatabaseName) {
           return JSON.stringify({
             success: false,
-            error: "Record with UUID " + (${uuid ? `"${escapeStringForJXA(uuid)}"` : "null"} || "unknown") + " not found in database " + (pDatabaseName || "unknown")
+            error: "Record not found in database " + pDatabaseName
+          });
+        }
+        if (pDatabaseUuid && record.database().uuid() !== pDatabaseUuid) {
+          return JSON.stringify({
+            success: false,
+            error: "Record not found in database " + pDatabaseUuid
           });
         }
 
-        let content;
-        const recordType = record.recordType();
-
-        if (recordType === "markdown" || recordType === "txt" || recordType === "formatted note") {
-            content = record.plainText();
-        } else if (recordType === "rtf") {
-            content = record.richText();
-        } else {
-            content = record.plainText();
+        const content = getRecordTextContent(record);
+        if (content === undefined || content === null) {
+          return JSON.stringify({
+            success: false,
+            error: "No text content available for this record type (" + (getRecordTypeOrKind(record) || "unknown") + ")"
+          });
         }
         
         return JSON.stringify({
@@ -85,7 +119,7 @@ const getRecordContent = async (input) => {
 };
 export const getRecordContentTool = {
     name: "get_record_content",
-    description: 'Gets the content of a specific record in DEVONthink.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF"\n}',
-    inputSchema: zodToJsonSchema(GetRecordContentSchema),
+    description: 'Gets the text content of a DEVONthink record. Use uuid from search (not the numeric id unless passing id/recordId). databaseName or databaseUuid optional.\n\nExamples:\n{ "recordUuid": "948A6182-6F3C-486D-8ECA-89B82C3885E4", "databaseName": "DB 1" }\n{ "id": 13855, "databaseUuid": "E58FC61B-A92D-4E47-AD59-E28A5942AB07" }',
+    inputSchema: toToolInputSchema(GetRecordContentSchema),
     run: getRecordContent,
 };

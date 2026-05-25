@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper, isGroupHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const ReplicateRecordSchema = z
     .object({
     uuid: z.string().optional().describe("UUID of the record to replicate"),
@@ -171,6 +169,6 @@ const replicateRecord = async (input) => {
 export const replicateRecordTool = {
     name: "replicate_record",
     description: 'Replicate a record within the same database to a destination group.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "destinationGroupUuid": "FEDC-BA09-8765-4321"\n}',
-    inputSchema: zodToJsonSchema(ReplicateRecordSchema),
+    inputSchema: toToolInputSchema(ReplicateRecordSchema),
     run: replicateRecord,
 };

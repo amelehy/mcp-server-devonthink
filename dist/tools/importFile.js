@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getDatabaseHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const ImportFileSchema = z
     .object({
     filePath: z
@@ -115,6 +113,6 @@ const importFile = async (input) => {
 export const importFileTool = {
     name: "import_file",
     description: 'Import an existing file or folder from a POSIX path or file URL into DEVONthink. Defaults to the global Inbox when no destination is provided.\n\nExample:\n{\n  "filePath": "/Users/david/Documents/report.pdf"\n}',
-    inputSchema: zodToJsonSchema(ImportFileSchema),
+    inputSchema: toToolInputSchema(ImportFileSchema),
     run: importFile,
 };

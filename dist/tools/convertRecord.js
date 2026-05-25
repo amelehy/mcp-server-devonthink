@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper, isGroupHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const ConvertRecordSchema = z
     .object({
     uuid: z.string().optional().describe("UUID of the record to convert"),
@@ -188,6 +186,6 @@ const convertRecord = async (input) => {
 export const convertRecordTool = {
     name: "convert_record",
     description: 'Convert a record to a different format, creating a new record.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "format": "markdown"\n}',
-    inputSchema: zodToJsonSchema(ConvertRecordSchema),
+    inputSchema: toToolInputSchema(ConvertRecordSchema),
     run: convertRecord,
 };

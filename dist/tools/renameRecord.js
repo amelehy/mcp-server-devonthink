@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const RenameRecordSchema = z
     .object({
     uuid: z.string().describe("UUID of the record to rename"),
@@ -77,6 +75,6 @@ const renameRecord = async (input) => {
 export const renameRecordTool = {
     name: "rename_record",
     description: 'Renames a specific record in DEVONthink.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "newName": "New Record Name"\n}',
-    inputSchema: zodToJsonSchema(RenameRecordSchema),
+    inputSchema: toToolInputSchema(RenameRecordSchema),
     run: renameRecord,
 };

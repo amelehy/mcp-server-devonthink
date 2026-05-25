@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
 import {
@@ -13,11 +12,11 @@ import {
 	getRecordLookupHelpers,
 	getDatabaseHelper,
 	isGroupHelper,
-	versionHelper,
+	databaseSearchScopeHelper,
+	getRecordTypeOrKindHelper,
+	getEditionCompatHelpers,
 } from "../utils/jxaHelpers.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const SearchSchema = z
 	.object({
@@ -37,6 +36,10 @@ const SearchSchema = z
 			.string()
 			.optional()
 			.describe("Database name (optional, required when using groupId or groupPath)"),
+		databaseUuid: z
+			.string()
+			.optional()
+			.describe("Database UUID from get_open_databases (alternative to databaseName)"),
 		useCurrentGroup: z
 			.boolean()
 			.optional()
@@ -71,12 +74,13 @@ const SearchSchema = z
 	.strict()
 	.refine(
 		(data) => {
-			// If groupId is provided, databaseName must also be provided
-			if (data.groupId !== undefined && !data.databaseName) {
+			const hasDb = !!(data.databaseName || data.databaseUuid);
+			// If groupId is provided, database must also be provided
+			if (data.groupId !== undefined && !hasDb) {
 				return false;
 			}
-			// If groupPath is provided, databaseName must also be provided
-			if (data.groupPath && !data.databaseName) {
+			// If groupPath is provided, database must also be provided
+			if (data.groupPath && !hasDb) {
 				return false;
 			}
 			// If useCurrentGroup is true, other group parameters should not be provided
@@ -120,6 +124,7 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
 		groupId,
 		groupPath,
 		databaseName,
+		databaseUuid,
 		useCurrentGroup,
 		recordType,
 		comparison,
@@ -155,6 +160,12 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
 			error: "Database name contains invalid characters",
 		};
 	}
+	if (databaseUuid && !isJXASafeString(databaseUuid)) {
+		return {
+			success: false,
+			error: "Database UUID contains invalid characters",
+		};
+	}
 
 	// Escape the search query
 	const escapedQuery = escapeSearchQuery(query);
@@ -168,7 +179,9 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
       ${getRecordLookupHelpers()}
       ${getDatabaseHelper}
       ${isGroupHelper}
-      ${versionHelper}
+      ${databaseSearchScopeHelper}
+      ${getEditionCompatHelpers()}
+      ${getRecordTypeOrKindHelper}
       
       try {
         // Define variables for lookup
@@ -176,6 +189,7 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
         const pGroupId = ${groupId !== undefined ? groupId : "null"};
         const pGroupPath = ${groupPath ? `"${escapeStringForJXA(groupPath)}"` : "null"};
         const pDatabaseName = ${databaseName ? `"${escapeStringForJXA(databaseName)}"` : "null"};
+        const pDatabaseUuid = ${databaseUuid ? `"${escapeStringForJXA(databaseUuid)}"` : "null"};
         const pUseCurrentGroup = ${useCurrentGroup === true};
         const pRecordType = ${formatValueForJXA(recordType)};
         const pComparison = ${formatValueForJXA(comparison)};
@@ -187,7 +201,7 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
         let targetDatabase;
         
         // Get target database
-        targetDatabase = getDatabase(theApp, pDatabaseName);
+        targetDatabase = resolveDatabase(theApp, pDatabaseName, pDatabaseUuid);
         
         // Determine search scope
         if (pUseCurrentGroup) {
@@ -245,9 +259,8 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
             return JSON.stringify({ success: false, error: "Error checking if record is a group: " + e.toString() });
           }
         } else if (targetDatabase) {
-          // User specified a database but no specific group
-          // DEVONthink 4.1+ requires using database.root() instead of the database object
-          searchScope = isVersion41OrLater(theApp) ? targetDatabase.root() : targetDatabase;
+          // Database object is not a valid search scope; use root() (required on DT3 Standard too)
+          searchScope = databaseSearchScope(targetDatabase);
         } else {
           searchScope = null; // Search all databases
         }
@@ -277,13 +290,7 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
         
         let filteredResults = searchResults;
         if (pRecordType) {
-          filteredResults = searchResults.filter(record => {
-            try {
-              return record.recordType() === pRecordType;
-            } catch (e) {
-              return false;
-            }
-          });
+          filteredResults = searchResults.filter(record => getRecordTypeOrKind(record) === pRecordType);
         }
         
         const limitedResults = filteredResults.slice(0, pLimit);
@@ -296,8 +303,9 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
             result["name"] = record.name();
             result["path"] = record.path();
             result["location"] = record.location();
-            result["recordType"] = record.recordType();
-            result["kind"] = record.kind();
+            result["recordType"] = getRecordTypeOrKind(record);
+            const kind = safeOptionalCall(() => record.kind());
+            if (kind !== undefined) result["kind"] = kind;
             result["creationDate"] = record.creationDate() ? record.creationDate().toString() : null;
             result["modificationDate"] = record.modificationDate() ? record.modificationDate().toString() : null;
             result["tags"] = record.tags();
@@ -328,6 +336,6 @@ const search = async (input: SearchInput): Promise<SearchResult> => {
 export const searchTool: Tool = {
 	name: "search",
 	description: `Search DEVONthink records. Examples: {"query": "invoice"} or {"query": "project review", "groupPath": "/Meetings", "databaseName": "MyDB"}. Note: groupPath requires databaseName and must be database-relative (e.g., "/Meetings" not "/MyDB/Meetings").`,
-	inputSchema: zodToJsonSchema(SearchSchema) as ToolInput,
+	inputSchema: toToolInputSchema(SearchSchema),
 	run: search,
 };

@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const ListGroupContentSchema = z
     .object({
     uuid: z
@@ -81,6 +79,6 @@ const listGroupContent = async (input) => {
 export const listGroupContentTool = {
     name: "list_group_content",
     description: 'Lists the content of a specific group in DEVONthink.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF"\n}',
-    inputSchema: zodToJsonSchema(ListGroupContentSchema),
+    inputSchema: toToolInputSchema(ListGroupContentSchema),
     run: listGroupContent,
 };

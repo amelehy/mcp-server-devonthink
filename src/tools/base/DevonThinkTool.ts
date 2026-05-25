@@ -1,11 +1,8 @@
 import { z, ZodSchema } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../../applescript/execute.js";
 import { escapeStringForJXA } from "../../utils/escapeString.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../../utils/toolInputSchema.js";
 
 /**
  * Standard result type for all DEVONthink tools
@@ -63,7 +60,7 @@ export abstract class DevonThinkTool<
 		return {
 			name: this.name,
 			description: this.description,
-			inputSchema: zodToJsonSchema(this.inputSchema) as ToolInput,
+			inputSchema: toToolInputSchema(this.inputSchema),
 			run: this.execute.bind(this),
 		};
 	}

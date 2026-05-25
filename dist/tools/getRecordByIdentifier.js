@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const GetRecordByIdentifierSchema = z
     .object({
     uuid: z.string().optional().describe("UUID of the record"),
@@ -188,6 +186,6 @@ const getRecordByIdentifier = async (input) => {
 export const getRecordByIdentifierTool = {
     name: "get_record_by_identifier",
     description: 'Get a DEVONthink record using its UUID, ID, or x-devonthink-item:// reference URL.\n\nExample (Reference URL):\n{\n  "referenceURL": "x-devonthink-item://1234-5678-90AB-CDEF"\n}\n\nExample (Reference URL - email):\n{\n  "referenceURL": "x-devonthink-item://message:%3Cfoo@bar.com%3E"\n}\n\nExample (UUID):\n{\n  "uuid": "1234-5678-90AB-CDEF"\n}\n\nExample (ID):\n{\n  "id": 12345,\n  "databaseName": "MyDatabase"\n}',
-    inputSchema: zodToJsonSchema(GetRecordByIdentifierSchema),
+    inputSchema: toToolInputSchema(GetRecordByIdentifierSchema),
     run: getRecordByIdentifier,
 };

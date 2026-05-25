@@ -1,13 +1,10 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const CompareSchema = z
 	.object({
@@ -245,6 +242,6 @@ export const compareTool: Tool = {
 	name: "compare",
 	description:
 		'Compare DEVONthink records for similarities.\n\nExample 1: Find similar records\n{\n  "recordUuid": "1234-5678-90AB-CDEF"\n}\n\nExample 2: Compare two specific records\n{\n  "recordUuid": "1234-5678-90AB-CDEF",\n  "compareWithUuid": "FEDC-BA09-8765-4321"\n}',
-	inputSchema: zodToJsonSchema(CompareSchema) as ToolInput,
+	inputSchema: toToolInputSchema(CompareSchema),
 	run: compare,
 };

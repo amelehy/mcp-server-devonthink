@@ -157,8 +157,15 @@ function getRecord(theApp, options) {
 export const isGroupHelper = `
 function isGroup(record) {
   if (!record) return false;
-  const type = record.recordType();
-  return type === "group" || type === "smart group";
+  try {
+    const type = record.recordType();
+    if (type === "group" || type === "smart group") return true;
+  } catch (e) {}
+  try {
+    const kind = record.kind();
+    return kind === "Group" || kind === "Smart Group";
+  } catch (e2) {}
+  return false;
 }`;
 /**
  * Helper to detect DEVONthink version for backward compatibility
@@ -179,6 +186,130 @@ function isVersion41OrLater(theApp) {
   }
 }`;
 /**
+ * Safely call a zero-arg getter; returns undefined if missing or throws (e.g. Standard edition).
+ */
+export const safeOptionalCallHelper = `
+function safeOptionalCall(getter) {
+  try {
+    const value = getter();
+    if (value !== undefined && value !== null) return value;
+  } catch (e) {}
+  return undefined;
+}`;
+/**
+ * Database audit/revision proof — version-dependent (4.1+ vs earlier).
+ */
+export const applyDatabaseAuditProofHelper = `
+function applyDatabaseAuditProof(db, info) {
+  try {
+    info.revisionProof = db.revisionProof();
+  } catch (e) {
+    try {
+      info.auditProof = db.auditProof();
+    } catch (e2) {}
+  }
+}`;
+/**
+ * Optional database comment.
+ */
+export const applyDatabaseCommentHelper = `
+function applyDatabaseComment(db, info) {
+  const comment = safeOptionalCall(() => db.comment());
+  if (comment) info.comment = comment;
+}`;
+/**
+ * Database fields that may be missing or throw on DEVONthink Standard (e.g. filename, spotlightIndexing).
+ */
+export const applyDatabaseOptionalFieldsHelper = `
+function applyDatabaseOptionalFields(db, info) {
+  const filename = safeOptionalCall(() => db.filename());
+  if (filename !== undefined) info.filename = filename;
+  const spotlightIndexing = safeOptionalCall(() => db.spotlightIndexing());
+  if (spotlightIndexing !== undefined) info.spotlightIndexing = spotlightIndexing;
+  const versioning = safeOptionalCall(() => db.versioning());
+  if (versioning !== undefined) info.versioning = versioning;
+}`;
+/**
+ * recordType() throws on some DT3 Standard records; kind() is a reliable fallback.
+ */
+export const getRecordTypeOrKindHelper = `
+function getRecordTypeOrKind(record) {
+  try {
+    const rt = record.recordType();
+    if (rt !== undefined && rt !== null) return rt;
+  } catch (e) {}
+  try {
+    return record.kind();
+  } catch (e2) {}
+  return undefined;
+}`;
+/**
+ * Read record body text; avoids recordType() which throws on some DT3 Standard records.
+ */
+export const getRecordTextContentHelper = `
+function getRecordTextContent(record) {
+  const typeOrKind = getRecordTypeOrKind(record);
+  const kind = (safeOptionalCall(() => record.kind()) || "").toLowerCase();
+  const plain = () => safeOptionalCall(() => record.plainText());
+  const rich = () => safeOptionalCall(() => record.richText());
+  if (typeOrKind === "markdown" || typeOrKind === "txt" || typeOrKind === "formatted note") {
+    return plain();
+  }
+  if (typeOrKind === "rtf") {
+    return rich() || plain();
+  }
+  if (kind.indexOf("rich text") >= 0) {
+    return rich() || plain();
+  }
+  return plain() || rich();
+}`;
+/**
+ * Search scope for a database: DT3+ requires root(), not the database object (see search tool).
+ */
+export const databaseSearchScopeHelper = `
+function databaseSearchScope(db) {
+  try {
+    if (db && typeof db.root === "function") {
+      return db.root();
+    }
+  } catch (e) {}
+  return db;
+}`;
+/**
+ * Record exclude* flags — often unavailable on DEVONthink Standard.
+ */
+export const applyRecordExcludeFlagsHelper = `
+function applyRecordExcludeFlags(record, properties) {
+  const names = [
+    "excludeFromChat",
+    "excludeFromClassification",
+    "excludeFromSearch",
+    "excludeFromSeeAlso",
+    "excludeFromTagging",
+    "excludeFromWikiLinking"
+  ];
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    try {
+      if (record[name] && record[name]() !== undefined) {
+        properties[name] = record[name]();
+      }
+    } catch (e) {}
+  }
+}`;
+/**
+ * Helpers for DEVONthink edition / version differences (inject into JXA scripts).
+ */
+export function getEditionCompatHelpers() {
+    return `
+    ${safeOptionalCallHelper}
+    ${applyDatabaseAuditProofHelper}
+    ${applyDatabaseCommentHelper}
+    ${applyDatabaseOptionalFieldsHelper}
+    ${applyRecordExcludeFlagsHelper}
+  `;
+}
+/**
  * Helper to get database by name or use current
  */
 export const getDatabaseHelper = `
@@ -193,6 +324,23 @@ function getDatabase(theApp, databaseName) {
     throw new Error("Database not found: " + databaseName);
   }
   return found;
+}
+
+function getDatabaseByUuid(theApp, databaseUuid) {
+  if (!databaseUuid) return null;
+  const databases = theApp.databases();
+  return databases.find(db => db.uuid() === databaseUuid) || null;
+}
+
+function resolveDatabase(theApp, databaseName, databaseUuid) {
+  if (databaseUuid) {
+    const db = getDatabaseByUuid(theApp, databaseUuid);
+    if (!db) {
+      throw new Error("Database not found with UUID: " + databaseUuid);
+    }
+    return db;
+  }
+  return getDatabase(theApp, databaseName);
 }`;
 /**
  * Helper to convert DEVONthink record objects to plain JavaScript objects
@@ -219,12 +367,15 @@ function convertDevonthinkRecord(record) {
     
     // Size and counts
     converted["size"] = record.size();
-    converted["wordCount"] = record.wordCount();
-    converted["characterCount"] = record.characterCount();
+    const wordCount = safeOptionalCall(() => record.wordCount());
+    if (wordCount !== undefined) converted["wordCount"] = wordCount;
+    const characterCount = safeOptionalCall(() => record.characterCount());
+    if (characterCount !== undefined) converted["characterCount"] = characterCount;
     
     // URLs and aliases
     converted["url"] = record.url();
-    converted["referenceURL"] = record.referenceURL();
+    const referenceURL = safeOptionalCall(() => record.referenceURL());
+    if (referenceURL !== undefined) converted["referenceURL"] = referenceURL;
     converted["aliases"] = record.aliases();
     
     // Tags and metadata
@@ -237,6 +388,8 @@ function convertDevonthinkRecord(record) {
     converted["flagged"] = record.flagged();
     converted["unread"] = record.unread();
     converted["locking"] = record.locking();
+
+    applyRecordExcludeFlags(record, converted);
     
     // Database info
     const db = record.database();
@@ -256,6 +409,7 @@ function convertDevonthinkRecord(record) {
 export function getJXAHelpers() {
     return `
     // JXA Helper Functions
+    ${getEditionCompatHelpers()}
     ${lookupByUuidHelper}
     ${lookupByIdHelper}
     ${lookupByPathHelper}

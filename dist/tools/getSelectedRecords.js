@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const GetSelectedRecordsSchema = z.object({}).strict();
 const getSelectedRecords = async () => {
     const script = `
@@ -71,6 +69,6 @@ const getSelectedRecords = async () => {
 export const selectedRecordsTool = {
     name: "selected_records",
     description: "Get information about currently selected records in DEVONthink.\n\nExample:\n{}",
-    inputSchema: zodToJsonSchema(GetSelectedRecordsSchema),
+    inputSchema: toToolInputSchema(GetSelectedRecordsSchema),
     run: getSelectedRecords,
 };

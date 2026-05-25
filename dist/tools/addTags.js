@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const AddTagsSchema = z
     .object({
     uuid: z.string().describe("Record UUID to add tags to"),
@@ -66,6 +64,6 @@ const addTags = async (input) => {
 export const addTagsTool = {
     name: "add_tags",
     description: 'Adds tags to a DEVONthink record.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "tags": ["important", "work"]\n}',
-    inputSchema: zodToJsonSchema(AddTagsSchema),
+    inputSchema: toToolInputSchema(AddTagsSchema),
     run: addTags,
 };

@@ -1,12 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
 import { getEditionCompatHelpers } from "../utils/jxaHelpers.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const GetOpenDatabasesSchema = z.object({}).strict();
 
@@ -15,13 +12,13 @@ interface DatabaseInfo {
 	uuid: string;
 	name: string;
 	path: string;
-	filename: string;
+	filename?: string;
 	encrypted: boolean;
 	revisionProof?: boolean; // DEVONthink 4.1 and later
 	auditProof?: boolean; // DEVONthink before 4.1
 	readOnly: boolean;
-	spotlightIndexing: boolean;
-	versioning: boolean;
+	spotlightIndexing?: boolean;
+	versioning?: boolean;
 	comment?: string;
 }
 
@@ -56,13 +53,11 @@ const getOpenDatabases = async (): Promise<GetOpenDatabasesResult> => {
             uuid: db.uuid(),
             name: db.name(),
             path: db.path(),
-            filename: db.filename(),
             encrypted: db.encrypted(),
-            readOnly: db.readOnly(),
-            spotlightIndexing: db.spotlightIndexing(),
-            versioning: db.versioning()
+            readOnly: db.readOnly()
           };
           
+          applyDatabaseOptionalFields(db, info);
           applyDatabaseAuditProof(db, info);
           applyDatabaseComment(db, info);
           
@@ -89,6 +84,6 @@ const getOpenDatabases = async (): Promise<GetOpenDatabasesResult> => {
 export const getOpenDatabasesTool: Tool = {
 	name: "get_open_databases",
 	description: "Get a list of all currently open databases in DEVONthink.\n\nExample:\n{}",
-	inputSchema: zodToJsonSchema(GetOpenDatabasesSchema) as ToolInput,
+	inputSchema: toToolInputSchema(GetOpenDatabasesSchema),
 	run: getOpenDatabases,
 };

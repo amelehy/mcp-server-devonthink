@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
 import {
@@ -9,9 +8,7 @@ import {
 	getEditionCompatHelpers,
 } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const GetRecordPropertiesSchema = z
 	.object({
@@ -192,6 +189,6 @@ export const getRecordPropertiesTool: Tool = {
 	name: "get_record_properties",
 	description:
 		'Get detailed properties and metadata for a DEVONthink record.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF"\n}',
-	inputSchema: zodToJsonSchema(GetRecordPropertiesSchema) as ToolInput,
+	inputSchema: toToolInputSchema(GetRecordPropertiesSchema),
 	run: getRecordProperties,
 };

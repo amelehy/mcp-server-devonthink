@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const IsRunningSchema = z.object({}).strict();
 const isRunning = async () => {
     const script = `
@@ -16,6 +14,6 @@ const isRunning = async () => {
 export const isRunningTool = {
     name: "is_running",
     description: "Check if the DEVONthink application is currently running.\n\nExample:\n{}",
-    inputSchema: zodToJsonSchema(IsRunningSchema),
+    inputSchema: toToolInputSchema(IsRunningSchema),
     run: isRunning,
 };

@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const CreateRecordSchema = z
     .object({
     name: z.string().describe("Name of the new record"),
@@ -94,6 +92,6 @@ const createRecord = async (input) => {
 export const createRecordTool = {
     name: "create_record",
     description: 'Create a new record in DEVONthink.\n\nExample:\n{\n  "name": "New Note",\n  "type": "markdown",\n  "content": "# Hello World"\n}',
-    inputSchema: zodToJsonSchema(CreateRecordSchema),
+    inputSchema: toToolInputSchema(CreateRecordSchema),
     run: createRecord,
 };

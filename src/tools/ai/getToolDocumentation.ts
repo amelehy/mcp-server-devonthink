@@ -1,9 +1,6 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { toToolInputSchema } from "../../utils/toolInputSchema.js";
 
 const GetToolDocumentationSchema = z
 	.object({
@@ -249,6 +246,6 @@ export const getToolDocumentationTool: Tool = {
 	name: "get_ai_tool_documentation",
 	description:
 		"Get detailed documentation for DEVONthink AI tools including examples and use cases.",
-	inputSchema: zodToJsonSchema(GetToolDocumentationSchema) as ToolInput,
+	inputSchema: toToolInputSchema(GetToolDocumentationSchema),
 	run: getToolDocumentation,
 };

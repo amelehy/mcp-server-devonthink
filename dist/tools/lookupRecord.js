@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const LookupRecordSchema = z
     .object({
     lookupType: z
@@ -149,6 +147,6 @@ const lookupRecord = async (input) => {
 export const lookupRecordTool = {
     name: "lookup_record",
     description: 'Look up records in DEVONthink by a specific attribute.\n\nExample:\n{\n  "lookupType": "filename",\n  "value": "report.pdf"\n}',
-    inputSchema: zodToJsonSchema(LookupRecordSchema),
+    inputSchema: toToolInputSchema(LookupRecordSchema),
     run: lookupRecord,
 };

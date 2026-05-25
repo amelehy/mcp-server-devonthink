@@ -45,6 +45,16 @@ These are read or written inside `try/catch` via helpers in `src/utils/jxaHelper
 | `revisionProof` | DEVONthink 4.1+ |
 | `auditProof` | DEVONthink before 4.1 |
 | `comment` | Optional on database object |
+| `filename` | May throw on Standard (`Can't get object`) |
+| `spotlightIndexing` | Pro / may throw on Standard (`Can't convert types`) |
+| `versioning` | Pro / may throw on Standard (`Can't convert types`) |
+
+### Search (`search`)
+
+| Issue | Notes |
+|-------|--------|
+| `in: database` | Invalid on DT3; use `database.root()` as search scope |
+| `record.recordType()` | May throw on some records; fallback to `kind()` |
 
 ### Record metadata (other tools)
 

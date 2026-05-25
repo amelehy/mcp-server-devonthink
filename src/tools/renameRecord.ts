@@ -1,13 +1,10 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const RenameRecordSchema = z
 	.object({
@@ -93,6 +90,6 @@ export const renameRecordTool: Tool = {
 	name: "rename_record",
 	description:
 		'Renames a specific record in DEVONthink.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "newName": "New Record Name"\n}',
-	inputSchema: zodToJsonSchema(RenameRecordSchema) as ToolInput,
+	inputSchema: toToolInputSchema(RenameRecordSchema),
 	run: renameRecord,
 };

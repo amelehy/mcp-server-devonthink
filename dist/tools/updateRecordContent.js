@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const UpdateRecordContentSchema = z
     .object({
     uuid: z.string().describe("UUID of the record to update"),
@@ -84,6 +82,6 @@ const updateRecordContent = async (input) => {
 export const updateRecordContentTool = {
     name: "update_record_content",
     description: 'Updates the content of an existing record in DEVONthink.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "content": "# New Content"\n}',
-    inputSchema: zodToJsonSchema(UpdateRecordContentSchema),
+    inputSchema: toToolInputSchema(UpdateRecordContentSchema),
     run: updateRecordContent,
 };

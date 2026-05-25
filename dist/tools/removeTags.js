@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const RemoveTagsSchema = z
     .object({
     uuid: z.string().describe("UUID of the record to remove tags from"),
@@ -85,6 +83,6 @@ const removeTags = async (input) => {
 export const removeTagsTool = {
     name: "remove_tags",
     description: 'Removes tags from a specific record in DEVONthink.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "tags": ["old-tag"]\n}',
-    inputSchema: zodToJsonSchema(RemoveTagsSchema),
+    inputSchema: toToolInputSchema(RemoveTagsSchema),
     run: removeTags,
 };

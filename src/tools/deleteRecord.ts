@@ -1,13 +1,10 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const DeleteRecordSchema = z
 	.object({
@@ -120,6 +117,6 @@ export const deleteRecordTool: Tool = {
 	name: "delete_record",
 	description:
 		'Delete a record from DEVONthink.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF"\n}',
-	inputSchema: zodToJsonSchema(DeleteRecordSchema) as ToolInput,
+	inputSchema: toToolInputSchema(DeleteRecordSchema),
 	run: deleteRecord,
 };

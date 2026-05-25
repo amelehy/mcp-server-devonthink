@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const ClassifySchema = z
     .object({
     recordUuid: z.string().describe("UUID of the record to classify"),
@@ -127,6 +125,6 @@ const classify = async (input) => {
 export const classifyTool = {
     name: "classify",
     description: 'Get classification proposals for a DEVONthink record.\n\nExample:\n{\n  "recordUuid": "1234-5678-90AB-CDEF"\n}',
-    inputSchema: zodToJsonSchema(ClassifySchema),
+    inputSchema: toToolInputSchema(ClassifySchema),
     run: classify,
 };

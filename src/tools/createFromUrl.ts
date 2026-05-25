@@ -1,11 +1,8 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const CreateFromUrlSchema = z
 	.object({
@@ -163,6 +160,6 @@ export const createFromUrlTool: Tool = {
 	name: "create_from_url",
 	description:
 		'Create a record in DEVONthink from a web URL.\n\nExample:\n{\n  "url": "https://www.example.com",\n  "format": "markdown"\n}',
-	inputSchema: zodToJsonSchema(CreateFromUrlSchema) as ToolInput,
+	inputSchema: toToolInputSchema(CreateFromUrlSchema),
 	run: createFromUrl,
 };

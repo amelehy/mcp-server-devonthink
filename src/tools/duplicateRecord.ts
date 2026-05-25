@@ -1,13 +1,10 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper, isGroupHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const DuplicateRecordSchema = z
 	.object({
@@ -192,6 +189,6 @@ export const duplicateRecordTool: Tool = {
 	name: "duplicate_record",
 	description:
 		'Duplicate a record to any destination group, creating an independent copy.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "destinationGroupUuid": "FEDC-BA09-8765-4321"\n}',
-	inputSchema: zodToJsonSchema(DuplicateRecordSchema) as ToolInput,
+	inputSchema: toToolInputSchema(DuplicateRecordSchema),
 	run: duplicateRecord,
 };

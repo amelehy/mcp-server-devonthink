@@ -2,7 +2,7 @@ import { execFile } from "child_process";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 export const executeJxa = (script) => {
     return new Promise((resolve, reject) => {
-        execFile("osascript", ["-l", "JavaScript", "-e", script], (error, stdout, stderr) => {
+        execFile("/usr/bin/osascript", ["-l", "JavaScript", "-e", script], (error, stdout, stderr) => {
             if (error) {
                 return reject(new McpError(ErrorCode.InternalError, `JXA execution failed: ${error.message}`));
             }

@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
 import { getRecordLookupHelpers, getDatabaseHelper } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const SetRecordPropertiesSchema = z
     .object({
     uuid: z.string().optional().describe("UUID of the record to update"),
@@ -154,6 +152,6 @@ const setRecordProperties = async (input) => {
 export const setRecordPropertiesTool = {
     name: "set_record_properties",
     description: 'Set properties on a DEVONthink record (comment, flag, locked, exclude* flags).\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF",\n  "comment": "Updated by tool",\n  "flag": true,\n  "locked": true,\n  "excludeFromChat": true\n}',
-    inputSchema: zodToJsonSchema(SetRecordPropertiesSchema),
+    inputSchema: toToolInputSchema(SetRecordPropertiesSchema),
     run: setRecordProperties,
 };

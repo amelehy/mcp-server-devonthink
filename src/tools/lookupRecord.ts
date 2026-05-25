@@ -1,11 +1,8 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 
 const LookupRecordSchema = z
 	.object({
@@ -179,6 +176,6 @@ export const lookupRecordTool: Tool = {
 	name: "lookup_record",
 	description:
 		'Look up records in DEVONthink by a specific attribute.\n\nExample:\n{\n  "lookupType": "filename",\n  "value": "report.pdf"\n}',
-	inputSchema: zodToJsonSchema(LookupRecordSchema) as ToolInput,
+	inputSchema: toToolInputSchema(LookupRecordSchema),
 	run: lookupRecord,
 };

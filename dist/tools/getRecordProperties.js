@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, isJXASafeString } from "../utils/escapeString.js";
-import { getRecordLookupHelpers, getDatabaseHelper } from "../utils/jxaHelpers.js";
+import { getRecordLookupHelpers, getDatabaseHelper, getEditionCompatHelpers, } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
-const ToolInputSchema = ToolSchema.shape.inputSchema;
+import { toToolInputSchema } from "../utils/toolInputSchema.js";
 const GetRecordPropertiesSchema = z
     .object({
     uuid: z.string().optional().describe("UUID of the record"),
@@ -44,6 +42,7 @@ const getRecordProperties = async (input) => {
       theApp.includeStandardAdditions = true;
 
       // Inject helper functions
+      ${getEditionCompatHelpers()}
       ${getRecordLookupHelpers()}
       ${getDatabaseHelper}
 
@@ -103,26 +102,22 @@ const getRecordProperties = async (input) => {
           label: targetRecord.label(),
           flag: targetRecord.flag(),
           unread: targetRecord.unread(),
-          locked: targetRecord.locking(),
-          wordCount: targetRecord.wordCount(),
-          characterCount: targetRecord.characterCount()
+          locked: targetRecord.locking()
         };
 
-        // Add optional exclusion flags if available on this record type
-        try { if (targetRecord.excludeFromChat && targetRecord.excludeFromChat() !== undefined) { properties.excludeFromChat = targetRecord.excludeFromChat(); } } catch (e) {}
-        try { if (targetRecord.excludeFromClassification && targetRecord.excludeFromClassification() !== undefined) { properties.excludeFromClassification = targetRecord.excludeFromClassification(); } } catch (e) {}
-        try { if (targetRecord.excludeFromSearch && targetRecord.excludeFromSearch() !== undefined) { properties.excludeFromSearch = targetRecord.excludeFromSearch(); } } catch (e) {}
-        try { if (targetRecord.excludeFromSeeAlso && targetRecord.excludeFromSeeAlso() !== undefined) { properties.excludeFromSeeAlso = targetRecord.excludeFromSeeAlso(); } } catch (e) {}
-        try { if (targetRecord.excludeFromTagging && targetRecord.excludeFromTagging() !== undefined) { properties.excludeFromTagging = targetRecord.excludeFromTagging(); } } catch (e) {}
-        try { if (targetRecord.excludeFromWikiLinking && targetRecord.excludeFromWikiLinking() !== undefined) { properties.excludeFromWikiLinking = targetRecord.excludeFromWikiLinking(); } } catch (e) {}
+        const wordCount = safeOptionalCall(() => targetRecord.wordCount());
+        if (wordCount !== undefined) properties.wordCount = wordCount;
+        const characterCount = safeOptionalCall(() => targetRecord.characterCount());
+        if (characterCount !== undefined) properties.characterCount = characterCount;
+
+        applyRecordExcludeFlags(targetRecord, properties);
 
         // Only include plain text for text-based records and limit size
         if (targetRecord.recordType() === "markdown" ||
             targetRecord.recordType() === "formatted note" ||
             targetRecord.recordType() === "txt") {
-          const plainText = targetRecord.plainText();
+          const plainText = safeOptionalCall(() => targetRecord.plainText());
           if (plainText && plainText.length > 0) {
-            // Limit to first 1000 characters to avoid overwhelming responses
             properties.plainText = plainText.length > 1000 ?
               plainText.substring(0, 1000) + "..." :
               plainText;
@@ -143,6 +138,6 @@ const getRecordProperties = async (input) => {
 export const getRecordPropertiesTool = {
     name: "get_record_properties",
     description: 'Get detailed properties and metadata for a DEVONthink record.\n\nExample:\n{\n  "uuid": "1234-5678-90AB-CDEF"\n}',
-    inputSchema: zodToJsonSchema(GetRecordPropertiesSchema),
+    inputSchema: toToolInputSchema(GetRecordPropertiesSchema),
     run: getRecordProperties,
 };
