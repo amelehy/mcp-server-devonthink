@@ -3,6 +3,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
+import { getEditionCompatHelpers } from "../utils/jxaHelpers.js";
 
 const ToolInputSchema = ToolSchema.shape.inputSchema;
 type ToolInput = z.infer<typeof ToolInputSchema>;
@@ -36,6 +37,7 @@ const getOpenDatabases = async (): Promise<GetOpenDatabasesResult> => {
     (() => {
       const theApp = ${JXA_DEVONTHINK_APP};
       theApp.includeStandardAdditions = true;
+      ${getEditionCompatHelpers()}
       
       try {
         const databases = theApp.databases();
@@ -61,21 +63,8 @@ const getOpenDatabases = async (): Promise<GetOpenDatabasesResult> => {
             versioning: db.versioning()
           };
           
-          // Handle audit/revision proof compatibility: before 4.1 vs 4.1 and later
-          try {
-            info["revisionProof"] = db.revisionProof(); // 4.1 and later
-          } catch (e) {
-            try {
-              info["auditProof"] = db.auditProof(); // before 4.1
-            } catch (e2) {
-              // fallback if neither works - don't add any property
-            }
-          }
-          
-          // Add comment if available
-          if (db.comment && db.comment()) {
-            info.comment = db.comment();
-          }
+          applyDatabaseAuditProof(db, info);
+          applyDatabaseComment(db, info);
           
           return info;
         });

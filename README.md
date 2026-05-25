@@ -1,6 +1,8 @@
 # Devonthink MCP Server
 
-This MCP server provides access to DEVONthink functionality via the Model Context Protocol (MCP). It enables listing, searching, creating, modifying, and managing records and databases in DEVONthink Pro on macOS.
+This MCP server provides access to DEVONthink functionality via the Model Context Protocol (MCP). It enables listing, searching, creating, modifying, and managing records and databases in **DEVONthink 3** on macOS (Standard and Pro).
+
+**Edition compatibility:** Core tools work on DEVONthink 3 Standard when Automation permission is granted; Pro-only properties and AI tools degrade gracefully. See [docs/EDITION_COMPATIBILITY.md](./docs/EDITION_COMPATIBILITY.md).
 
 ![screenshot](./screenshot.png)
 
@@ -134,6 +136,11 @@ Add to your Claude configuration:
   }
 }
 ```
+
+## Requirements
+
+- macOS with **DEVONthink 3** installed (registered JXA name: `"DEVONthink 3"`)
+- Grant **Automation** for your MCP host (e.g. Claude Desktop) in System Settings → Privacy & Security
 
 ## Implementation Details
 
