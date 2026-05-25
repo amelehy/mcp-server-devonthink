@@ -187,6 +187,76 @@ function isVersion41OrLater(theApp) {
 }`;
 
 /**
+ * Safely call a zero-arg getter; returns undefined if missing or throws (e.g. Standard edition).
+ */
+export const safeOptionalCallHelper = `
+function safeOptionalCall(getter) {
+  try {
+    const value = getter();
+    if (value !== undefined && value !== null) return value;
+  } catch (e) {}
+  return undefined;
+}`;
+
+/**
+ * Database audit/revision proof — version-dependent (4.1+ vs earlier).
+ */
+export const applyDatabaseAuditProofHelper = `
+function applyDatabaseAuditProof(db, info) {
+  try {
+    info.revisionProof = db.revisionProof();
+  } catch (e) {
+    try {
+      info.auditProof = db.auditProof();
+    } catch (e2) {}
+  }
+}`;
+
+/**
+ * Optional database comment.
+ */
+export const applyDatabaseCommentHelper = `
+function applyDatabaseComment(db, info) {
+  const comment = safeOptionalCall(() => db.comment());
+  if (comment) info.comment = comment;
+}`;
+
+/**
+ * Record exclude* flags — often unavailable on DEVONthink Standard.
+ */
+export const applyRecordExcludeFlagsHelper = `
+function applyRecordExcludeFlags(record, properties) {
+  const names = [
+    "excludeFromChat",
+    "excludeFromClassification",
+    "excludeFromSearch",
+    "excludeFromSeeAlso",
+    "excludeFromTagging",
+    "excludeFromWikiLinking"
+  ];
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    try {
+      if (record[name] && record[name]() !== undefined) {
+        properties[name] = record[name]();
+      }
+    } catch (e) {}
+  }
+}`;
+
+/**
+ * Helpers for DEVONthink edition / version differences (inject into JXA scripts).
+ */
+export function getEditionCompatHelpers(): string {
+	return `
+    ${safeOptionalCallHelper}
+    ${applyDatabaseAuditProofHelper}
+    ${applyDatabaseCommentHelper}
+    ${applyRecordExcludeFlagsHelper}
+  `;
+}
+
+/**
  * Helper to get database by name or use current
  */
 export const getDatabaseHelper = `
@@ -228,12 +298,15 @@ function convertDevonthinkRecord(record) {
     
     // Size and counts
     converted["size"] = record.size();
-    converted["wordCount"] = record.wordCount();
-    converted["characterCount"] = record.characterCount();
+    const wordCount = safeOptionalCall(() => record.wordCount());
+    if (wordCount !== undefined) converted["wordCount"] = wordCount;
+    const characterCount = safeOptionalCall(() => record.characterCount());
+    if (characterCount !== undefined) converted["characterCount"] = characterCount;
     
     // URLs and aliases
     converted["url"] = record.url();
-    converted["referenceURL"] = record.referenceURL();
+    const referenceURL = safeOptionalCall(() => record.referenceURL());
+    if (referenceURL !== undefined) converted["referenceURL"] = referenceURL;
     converted["aliases"] = record.aliases();
     
     // Tags and metadata
@@ -246,6 +319,8 @@ function convertDevonthinkRecord(record) {
     converted["flagged"] = record.flagged();
     converted["unread"] = record.unread();
     converted["locking"] = record.locking();
+
+    applyRecordExcludeFlags(record, converted);
     
     // Database info
     const db = record.database();
@@ -266,6 +341,7 @@ function convertDevonthinkRecord(record) {
 export function getJXAHelpers(): string {
 	return `
     // JXA Helper Functions
+    ${getEditionCompatHelpers()}
     ${lookupByUuidHelper}
     ${lookupByIdHelper}
     ${lookupByPathHelper}

@@ -3,7 +3,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { Tool, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
 import { executeJxa } from "../applescript/execute.js";
 import { escapeStringForJXA, formatValueForJXA, isJXASafeString } from "../utils/escapeString.js";
-import { getRecordLookupHelpers } from "../utils/jxaHelpers.js";
+import { getRecordLookupHelpers, getEditionCompatHelpers } from "../utils/jxaHelpers.js";
 import { JXA_DEVONTHINK_APP } from "../constants.js";
 
 const ToolInputSchema = ToolSchema.shape.inputSchema;
@@ -44,6 +44,7 @@ const getRecordContent = async (input: GetRecordContentInput): Promise<GetRecord
       theApp.includeStandardAdditions = true;
       
       // Inject helper functions
+      ${getEditionCompatHelpers()}
       ${getRecordLookupHelpers()}
       
       try {
@@ -76,11 +77,11 @@ const getRecordContent = async (input: GetRecordContentInput): Promise<GetRecord
         const recordType = record.recordType();
 
         if (recordType === "markdown" || recordType === "txt" || recordType === "formatted note") {
-            content = record.plainText();
+            content = safeOptionalCall(() => record.plainText());
         } else if (recordType === "rtf") {
-            content = record.richText();
+            content = safeOptionalCall(() => record.richText());
         } else {
-            content = record.plainText();
+            content = safeOptionalCall(() => record.plainText());
         }
         
         return JSON.stringify({
