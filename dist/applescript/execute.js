@@ -2,9 +2,15 @@ import { execFile } from "child_process";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 export const executeJxa = (script) => {
     return new Promise((resolve, reject) => {
-        execFile("/usr/bin/osascript", ["-l", "JavaScript", "-e", script], (error, stdout, stderr) => {
+        // Pass the script over stdin rather than `-e`: endpoint security tools
+        // (AVG, SentinelOne) SIGKILL osascript when a large inline script
+        // appears in its command line.
+        const child = execFile("/usr/bin/osascript", ["-l", "JavaScript", "-"], (error, stdout, stderr) => {
             if (error) {
-                return reject(new McpError(ErrorCode.InternalError, `JXA execution failed: ${error.message}`));
+                const detail = error.signal
+                    ? `osascript was killed by ${error.signal}`
+                    : stderr || error.message;
+                return reject(new McpError(ErrorCode.InternalError, `JXA execution failed: ${detail}`));
             }
             if (stderr) {
                 return reject(new McpError(ErrorCode.InternalError, `JXA error: ${stderr}`));
@@ -17,5 +23,6 @@ export const executeJxa = (script) => {
                 reject(new McpError(ErrorCode.InternalError, `Failed to parse JXA output: ${parseError}`));
             }
         });
+        child.stdin?.end(script);
     });
 };
